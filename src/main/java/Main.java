@@ -10,9 +10,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.image.PixelReader;
+import javafx.scene.image.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -24,17 +22,18 @@ import java.util.List;
 
 public class Main extends Application {
 
-    double redMin = 0.3;
-    double redMax = 1;
-    double greenMin = 0.2;
-    double greenMax = 0.4;
-    double blueMin = 0;
-    double blueMax = 0.25;
+    double yMin = 61;
+    double yMax = 118;
+    double crMin = 153;
+    double crMax = 187;
+    double cbMin = 89;
+    double cbMax = 112;
 
-    double averageShadeMin = 0.25;
-    double averageShadeMax = 1;
+    double averageShadeMin = 0.24;
+    double averageShadeMax = 0.59;
 
     BufferedImage image;
+    List<PixelGroup> lastGroups = new ArrayList<>();
 
     long minTime = 1000 / 60;
 
@@ -46,33 +45,33 @@ public class Main extends Application {
         final Webcam webcam = Webcam.getDefault();
         webcam.open();
 
-        Slider minRed = new Slider(0, 1, redMin);
-        Slider maxRed = new Slider(0, 1, redMax);
-        Slider minGreen = new Slider(0, 1, greenMin);
-        Slider maxGreen = new Slider(0, 1, greenMax);
-        Slider minBlue = new Slider(0, 1, blueMin);
-        Slider maxBlue = new Slider(0, 1, blueMax);
+        Slider minY = new Slider(16, 235, yMin);
+        Slider maxY = new Slider(16, 235, yMax);
+        Slider minCr = new Slider(16, 240, crMin);
+        Slider maxCr = new Slider(16, 240, crMax);
+        Slider minCb = new Slider(16, 240, cbMin);
+        Slider maxCb = new Slider(16, 240, cbMax);
 
-        Label minRedVal = new Label();
-        minRedVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(minRed.getValue() * 10000) / 10000D), minRed.valueProperty()));
-        Label maxRedVal = new Label();
-        maxRedVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(maxRed.getValue() * 10000) / 10000D), maxRed.valueProperty()));
-        Label minGreenVal = new Label();
-        minGreenVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(minGreen.getValue() * 10000) / 10000D), minGreen.valueProperty()));
-        Label maxGreenVal = new Label();
-        maxGreenVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(maxGreen.getValue() * 10000) / 10000D), maxGreen.valueProperty()));
-        Label minBlueVal = new Label();
-        minBlueVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(minBlue.getValue() * 10000) / 10000D), minBlue.valueProperty()));
-        Label maxBlueVal = new Label();
-        maxBlueVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(maxBlue.getValue() * 10000) / 10000D), maxBlue.valueProperty()));
+        Label minYVal = new Label();
+        minYVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(minY.getValue() * 10000) / 10000D), minY.valueProperty()));
+        Label maxYVal = new Label();
+        maxYVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(maxY.getValue() * 10000) / 10000D), maxY.valueProperty()));
+        Label minCrVal = new Label();
+        minCrVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(minCr.getValue() * 10000) / 10000D), minCr.valueProperty()));
+        Label maxCrVal = new Label();
+        maxCrVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(maxCr.getValue() * 10000) / 10000D), maxCr.valueProperty()));
+        Label minCbVal = new Label();
+        minCbVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(minCb.getValue() * 10000) / 10000D), minCb.valueProperty()));
+        Label maxCbVal = new Label();
+        maxCbVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(maxCb.getValue() * 10000) / 10000D), maxCb.valueProperty()));
 
         GridPane minMaxColors = new GridPane();
-        minMaxColors.addRow(0, new Label("Min Red %: "), minRed, minRedVal);
-        minMaxColors.addRow(1, new Label("Max Red %: "), maxRed, maxRedVal);
-        minMaxColors.addRow(2, new Label("Min Green %: "), minGreen, minGreenVal);
-        minMaxColors.addRow(3, new Label("Max Green %: "), maxGreen, maxGreenVal);
-        minMaxColors.addRow(4, new Label("Min Blue %: "), minBlue, minBlueVal);
-        minMaxColors.addRow(5, new Label("Max Blue %: "), maxBlue, maxBlueVal);
+        minMaxColors.addRow(0, new Label("Min Y: "), minY, minYVal);
+        minMaxColors.addRow(1, new Label("Max Y: "), maxY, maxYVal);
+        minMaxColors.addRow(2, new Label("Min Cb: "), minCr, minCrVal);
+        minMaxColors.addRow(3, new Label("Max Cb: "), maxCr, maxCrVal);
+        minMaxColors.addRow(4, new Label("Min Cr: "), minCb, minCbVal);
+        minMaxColors.addRow(5, new Label("Max Cr: "), maxCb, maxCbVal);
 
         Slider minAverageShade = new Slider(0, 1, averageShadeMin);
         Slider maxAverageShade = new Slider(0, 1, averageShadeMax);
@@ -99,11 +98,12 @@ public class Main extends Application {
         monochromeInvalid.setSelected(true);
         CheckBox playing = new CheckBox("Record");
         playing.setSelected(true);
+        CheckBox drawPath = new CheckBox("Draw Path");
 
         VBox sliders = new VBox(
                 minMaxColors,
                 new Separator(), minMaxShade,
-                new Separator(), showObjects, draw, drawInvalidObjects, monochromeInvalid, playing,
+                new Separator(), showObjects, draw, drawInvalidObjects, monochromeInvalid, playing, drawPath,
                 new Separator(), new HBox(new Label("Minimum Pixel Group Size:  "), minBlockSize, minBlockSizeVal)
         );
         sliders.setPadding(new Insets(20));
@@ -118,12 +118,12 @@ public class Main extends Application {
                     image = webcam.getImage();
                 }
                 Pixel[] allPixels = PixelValidator.loadPixelsFromImage(image);
-                redMin = minRed.getValue();
-                redMax = maxRed.getValue();
-                greenMin = minGreen.getValue();
-                greenMax = maxGreen.getValue();
-                blueMin = minBlue.getValue();
-                blueMax = maxBlue.getValue();
+                yMin = minY.getValue();
+                yMax = maxY.getValue();
+                crMin = minCr.getValue();
+                crMax = maxCr.getValue();
+                cbMin = minCb.getValue();
+                cbMax = maxCb.getValue();
                 averageShadeMin = minAverageShade.getValue();
                 averageShadeMax = maxAverageShade.getValue();
                 Pixel[] validPixels = PixelValidator.validate(
@@ -132,14 +132,17 @@ public class Main extends Application {
                             Color color = pixel.getColor();
                             double averageShade = averageShade(color);
 
-                            double total = color.getRed() + color.getGreen() + color.getBlue();
-                            double percentageRed = color.getRed() / total;
-                            double percentageGreen = color.getGreen() / total;
-                            double percentageBlue = color.getBlue() / total;
+                            double r = color.getRed() * 255;
+                            double g = color.getGreen() * 255;
+                            double b = color.getBlue() * 255;
 
-                            return percentageRed > redMin && percentageRed < redMax &&
-                                    percentageBlue > blueMin && percentageBlue < blueMax &&
-                                    percentageGreen > greenMin && percentageGreen < greenMax &&
+                            int y = (int) (0.299 * r + 0.587 * g + 0.114 * b);
+                            int cb = (int) (128 - 0.169 * r - 0.331 * g + 0.500 * b);
+                            int cr = (int) (128 + 0.500 * r - 0.419 * g - 0.081 * b);
+
+                            return y > yMin && y < yMax &&
+                                    cb > cbMin && cb < cbMax &&
+                                    cr > crMin && cr < crMax &&
                                     averageShade > averageShadeMin && averageShade < averageShadeMax;
                         }
                 );
@@ -148,43 +151,63 @@ public class Main extends Application {
                 final boolean monochromeDraw = monochromeInvalid.isSelected();
                 final double blockSize = minBlockSize.getValue();
                 final boolean drawPixels = draw.isSelected();
+                final boolean path = drawPath.isSelected();
                 List<PixelGroup> pixelGroups = objsOutline ? PixelGrouper.findPixelGroups(validPixels, 3) : new ArrayList<>();
+
+                WritableImage drawnImage = new WritableImage(image.getWidth(), image.getHeight());
+                PixelWriter writer = drawnImage.getPixelWriter();
+                if (drawPixels) {
+                    int incrementAmount = 1;
+                    for (int i = 0, allPixelsLength = allPixels.length; i < allPixelsLength; i += incrementAmount) {
+                        Pixel pixel = allPixels[i];
+                        boolean accepted = validPixels[i] != null;
+                        if (accepted) {
+                            writer.setColor((int) pixel.getX(), (int) pixel.getY(), pixel.getColor());
+                        } else if (invalidDraw) {
+                            Color color;
+                            if (monochromeDraw) {
+                                color = pixel.getColor().grayscale();
+                            } else {
+                                color = pixel.getColor();
+                            }
+                            writer.setColor((int) pixel.getX(), (int) pixel.getY(), color);
+                        }
+                    }
+                }
+
 
                 Platform.runLater(() -> {
                     Canvas canvas = new Canvas(image.getWidth(), image.getHeight());
                     canvas.setScaleX(6);
                     canvas.setScaleY(6);
                     GraphicsContext context = canvas.getGraphicsContext2D();
+                    context.drawImage(drawnImage, 0, 0);
                     pane.setCenter(canvas);
 
-                    if (drawPixels) {
-                        for (int i = 0, allPixelsLength = allPixels.length; i < allPixelsLength; i++) {
-                            Pixel pixel = allPixels[i];
-                            boolean accepted = validPixels[i] != null;
-                            if (accepted) {
-                                context.setFill(pixel.getColor());
-                                context.fillRect(pixel.getX(), pixel.getY(), 1, 1);
-                            } else if (invalidDraw) {
-                                if (monochromeDraw) {
-                                    context.setFill(pixel.getColor().grayscale());
-                                } else {
-                                    context.setFill(pixel.getColor());
-                                }
-                                context.fillRect(pixel.getX(), pixel.getY(), 1, 1);
-                            }
-                        }
-                    }
-
+                    context.setStroke(Color.rgb(255, 0, 255, 0.3));
+                    context.setFill(Color.rgb(0, 0, 0, 0.5));
                     for (PixelGroup group : pixelGroups) {
                         List<Pixel> pixels = group.getPixels();
                         if (pixels.size() > blockSize) {
-                            context.setFill(Color.rgb(0, 0, 0, 0.5));
+                            if (path) {
+                                PixelGroup matchingGroup = null;
+                                for (PixelGroup lastGroup : lastGroups) {
+                                    if (PixelGrouper.groupsMatch(group, lastGroup, 0.3, 25)) {
+                                        matchingGroup = lastGroup;
+                                        break;
+                                    }
+                                }
+                                if (matchingGroup != null) {
+                                    group.setPrevious(matchingGroup);
+                                    drawPath(context, group, 1, 10000);
+                                }
+                            }
                             context.fillRect(group.getMinX(), group.getMinY(), group.getMaxX() - group.getMinX(), group.getMaxY() - group.getMinY());
                         }
                     }
-
+                    lastGroups.clear();
+                    lastGroups.addAll(pixelGroups);
                 });
-
                 long time = System.currentTimeMillis() - start;
                 if (time < minTime) {
                     try {
@@ -199,6 +222,29 @@ public class Main extends Application {
         thread.start();
         primaryStage.setScene(new Scene(pane));
         primaryStage.show();
+    }
+
+    private void drawPath(GraphicsContext context, PixelGroup group, int lineSize, int maxLines) {
+        double prevX = centerX(group);
+        double prevY = centerY(group);
+        context.setLineWidth(lineSize);
+        int i = 0;
+        while (group != null) {
+            double x = centerX(group);
+            double y = centerY(group);
+            context.strokeLine(prevX, prevY, x, y);
+            prevX = x;
+            prevY = y;
+            group = group.getPrevious();
+            if (++i >= maxLines) break;
+        }
+    }
+
+    private double centerX(PixelGroup group) {
+        return group.getMinX() + (group.getMaxX() - group.getMinX()) / 2;
+    }
+    private double centerY(PixelGroup group) {
+        return group.getMinY() + (group.getMaxY() - group.getMinY()) / 2;
     }
 
     private double averageShade(Color color) {

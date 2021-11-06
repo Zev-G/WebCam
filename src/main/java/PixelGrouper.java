@@ -32,4 +32,23 @@ public class PixelGrouper {
         return groups;
     }
 
+    public static boolean groupsMatch(PixelGroup a, PixelGroup b, double maxRatioDif, double maxMovement) {
+        double aWidth = a.getMaxX() - a.getMinX();
+        double aHeight = a.getMaxY() - a.getMinY();
+        double bWidth = b.getMaxX() - b.getMinX();
+        double bHeight = b.getMaxY() - b.getMinY();
+
+        double aRatio = (aWidth) / (aHeight);
+        double bRatio = (bWidth) / (bHeight);
+        if (Math.abs(aRatio - bRatio) > maxRatioDif) return false;
+        double aCenterX = a.getMinX() + aWidth / 2;
+        double aCenterY = a.getMinY() + aHeight / 2;
+        double bCenterX = b.getMinX() + bWidth / 2;
+        double bCenterY = b.getMinY() + bHeight / 2;
+        double distance = Math.sqrt(
+                Math.pow(aCenterX - bCenterX, 2) + Math.pow(aCenterY - bCenterY, 2)
+        );
+        return distance <= maxMovement;
+    }
+
 }

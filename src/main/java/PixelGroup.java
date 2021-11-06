@@ -10,6 +10,8 @@ public class PixelGroup {
 
     private final List<Pixel> pixels = new ArrayList<>();
 
+    private PixelGroup previous = null;
+
     public PixelGroup(List<PixelGroup> groups) {
         for (PixelGroup group : groups) {
             maxX = Math.max(maxX, group.maxX);
@@ -74,6 +76,14 @@ public class PixelGroup {
 
     public double getMinY() {
         return minY;
+    }
+
+    public PixelGroup getPrevious() {
+        return previous;
+    }
+
+    public void setPrevious(PixelGroup previous) {
+        this.previous = previous;
     }
 
 }
