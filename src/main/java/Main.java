@@ -1,7 +1,6 @@
 import com.github.sarxos.webcam.Webcam;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -9,10 +8,12 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelReader;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 import java.awt.image.BufferedImage;
+import java.util.List;
 
 public class Main extends Application {
 
@@ -23,69 +24,63 @@ public class Main extends Application {
     public void start(Stage primaryStage) throws Exception {
         final Webcam webcam = Webcam.getDefault();
         webcam.open();
-        final Pane pane = new Pane();
-        Thread thread = new Thread() {
-            @Override
-            public void run() {
-                while (true) {
-                    final BufferedImage image = webcam.getImage();
-                    Platform.runLater(new Runnable() {
-                        public void run() {
-                            Image jfxImage = SwingFXUtils.toFXImage(image, null);
-                            Canvas canvas = new Canvas(1000, 1000);
-                            GraphicsContext context = canvas.getGraphicsContext2D();
-                            pane.getChildren().setAll(canvas);
-                            PixelReader reader = jfxImage.getPixelReader();
-                            double averageX = 0;
-                            double averageY = 0;
-                            int acceptedPoints = 0;
-                            for (int x = 1; x < jfxImage.getWidth(); x++) {
-                                for (int y = 0; y < jfxImage.getHeight(); y++) {
-                                    Color color = reader.getColor(x, y);
+        final Pane pane = new StackPane();
+        Thread thread = new Thread(() -> {
+            while (true) {
+                final BufferedImage image = webcam.getImage();
+                Pixel[] allPixels = PixelValidator.loadPixelsFromImage(image);
+                Pixel[] validPixels = PixelValidator.validate(
+                        allPixels,
+                        pixel -> {
+                            Color color = pixel.getColor();
+                            double averageShade = averageShade(color);
 
-                                    double averageShade = averageShade(color);
+                            double total = color.getRed() + color.getGreen() + color.getBlue();
+                            double percentageRed = color.getRed() / total;
+                            double percentageGreen = color.getGreen() / total;
+                            double percentageBlue = color.getBlue() / total;
 
-                                    double total = color.getRed() + color.getGreen() + color.getBlue();
-                                    double percentageRed = color.getRed() / total;
-                                    double percentageGreen = color.getGreen() / total;
-                                    double percentageBlue = color.getBlue() / total;
-
-                                if (
-                                        percentageRed > 0.3 &&
-                                        percentageBlue < 0.25 &&
-                                        percentageGreen > 0.2 && percentageGreen < 0.4 &&
-                                        averageShade > 0.25
-                                ) {
-                                    System.out.println(averageShade);
-                                        averageX += x;
-                                        averageY += y;
-                                        acceptedPoints++;
-
-                                    }
-                                    context.setFill(reader.getColor(x, y));
-                                    context.fillRect(x, y, 1, 1);
-                                }
-                            }
-                            if (acceptedPoints > 100) {
-                                averageX = averageX / acceptedPoints;
-                                averageY = averageY / acceptedPoints;
-                                context.setFill(Color.rgb(0, 0, 0, 0.5));
-                                context.fillOval(averageX - 10, averageY - 10, 20, 20);
-                            }
-
-//                            ImageView imageView = new ImageView(jfxImage);
-//                            imageView.setPreserveRatio(true);
-//                            imageView.setFitHeight(500);
+                            return percentageRed > 0.3 &&
+                                    percentageBlue < 0.25 &&
+                                    percentageGreen > 0.2 && percentageGreen < 0.4 &&
+                                    averageShade > 0.25;
                         }
-                    });
-                    try {
-                        Thread.sleep(50);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                );
+                List<PixelGroup> pixelGroups = PixelGrouper.findPixelGroups(validPixels, 5);
+
+                Platform.runLater(() -> {
+                    Canvas canvas = new Canvas(300, 200);
+                    canvas.setScaleX(6);
+                    canvas.setScaleY(6);
+                    GraphicsContext context = canvas.getGraphicsContext2D();
+                    pane.getChildren().setAll(canvas);
+
+                    for (Pixel pixel : allPixels) {
+                        context.setFill(pixel.getColor());
+                        context.fillRect(pixel.getX(), pixel.getY(), 1, 1);
                     }
+
+                    for (PixelGroup group : pixelGroups) {
+                        List<Pixel> pixels = group.getPixels();
+                        if (pixels.size() > 10) {
+                            System.out.println(pixels.size());
+                            for (Pixel pixel : pixels) {
+                                double x = pixel.getX();
+                                double y = pixel.getY();
+                            }
+                            context.setFill(Color.rgb(0, 0, 0, 0.5));
+                            context.fillRect(group.getMinX(), group.getMinY(), group.getMaxX() - group.getMinX(), group.getMaxY() - group.getMinY());
+                        }
+                    }
+
+                });
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
-        };
+        });
         thread.setDaemon(true);
         thread.start();
         primaryStage.setScene(new Scene(pane));
