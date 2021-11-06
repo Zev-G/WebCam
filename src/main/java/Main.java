@@ -10,13 +10,10 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.control.Slider;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.image.PixelReader;
+import javafx.scene.image.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
-import org.controlsfx.control.RangeSlider;
 
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
@@ -90,9 +87,9 @@ public class Main extends Application {
         minBlockSizeVal.textProperty().bind(Bindings.createStringBinding(() -> String.valueOf(Math.round(minBlockSize.getValue())), minBlockSize.valueProperty()));
 
         CheckBox showObjects = new CheckBox("Show Objects");
-        showObjects.setSelected(true);
+        showObjects.setSelected(false);
         CheckBox draw = new CheckBox("Draw Pixels");
-        draw.setSelected(true);
+        draw.setSelected(false);
         CheckBox drawInvalidObjects = new CheckBox("Draw Invalid Pixels");
         drawInvalidObjects.setSelected(true);
         CheckBox monochromeInvalid = new CheckBox("Draw Invalid Pixels Monochrome");
@@ -150,30 +147,32 @@ public class Main extends Application {
                 final boolean drawPixels = draw.isSelected();
                 List<PixelGroup> pixelGroups = objsOutline ? PixelGrouper.findPixelGroups(validPixels, 3) : new ArrayList<>();
 
-                Platform.runLater(() -> {
-                    Canvas canvas = new Canvas(image.getWidth(), image.getHeight());
-                    canvas.setScaleX(6);
-                    canvas.setScaleY(6);
-                    GraphicsContext context = canvas.getGraphicsContext2D();
-                    pane.setCenter(canvas);
-
-                    if (drawPixels) {
-                        for (int i = 0, allPixelsLength = allPixels.length; i < allPixelsLength; i++) {
-                            Pixel pixel = allPixels[i];
-                            boolean accepted = validPixels[i] != null;
-                            if (accepted) {
-                                context.setFill(pixel.getColor());
-                                context.fillRect(pixel.getX(), pixel.getY(), 1, 1);
-                            } else if (invalidDraw) {
-                                if (monochromeDraw) {
-                                    context.setFill(pixel.getColor().grayscale());
-                                } else {
-                                    context.setFill(pixel.getColor());
-                                }
-                                context.fillRect(pixel.getX(), pixel.getY(), 1, 1);
+                WritableImage drawnImage = new WritableImage(image.getWidth(), image.getHeight());
+                PixelWriter writer = drawnImage.getPixelWriter();
+                if (drawPixels) {
+                    int incrementAmount = 1;
+                    for (int i = 0, allPixelsLength = allPixels.length; i < allPixelsLength; i += incrementAmount) {
+                        Pixel pixel = allPixels[i];
+                        boolean accepted = validPixels[i] != null;
+                        if (accepted) {
+                            writer.setColor((int) pixel.getX(), (int) pixel.getY(), pixel.getColor());
+                        } else if (invalidDraw) {
+                            Color color;
+                            if (monochromeDraw) {
+                                color = pixel.getColor().grayscale();
+                            } else {
+                                color = pixel.getColor();
                             }
+                            writer.setColor((int) pixel.getX(), (int) pixel.getY(), color);
                         }
                     }
+                }
+
+                Platform.runLater(() -> {
+                    Canvas canvas = new Canvas(image.getWidth(), image.getHeight());
+                    GraphicsContext context = canvas.getGraphicsContext2D();
+                    context.drawImage(drawnImage, 0, 0);
+                    pane.setCenter(canvas);
 
                     for (PixelGroup group : pixelGroups) {
                         List<Pixel> pixels = group.getPixels();
