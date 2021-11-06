@@ -43,18 +43,14 @@ public class PixelGroup {
         pixels.add(pixel);
     }
 
-    private double distanceFromCenter(int x, int y) {
-        double centerX = minX + (maxX - minX) / 2;
-        double centerY = minY + (maxY - minY) / 2;
-
-        return Math.sqrt(Math.pow(Math.abs(x - centerX), 2) + Math.pow(Math.abs(y - centerY), 2));
-    }
-    private boolean fallsWithinBoundingBox(int x, int y) {
+    private boolean fallsWithinBoundingBox(double x, double y) {
         return  x > minX && x < maxX &&
                 y > minY && y < maxY;
     }
 
     public boolean accepts(Pixel pixel, double maxLength) {
+        if (fallsWithinBoundingBox(pixel.getX(), pixel.getY())) return true;
+
         double dx = Math.max(minX - pixel.getX(), Math.max(0, pixel.getX() - maxX));
         double dy = Math.max(minY - pixel.getY(), Math.max(0, pixel.getY() - maxY));
         return Math.sqrt(dx*dx + dy*dy) <= maxLength;
